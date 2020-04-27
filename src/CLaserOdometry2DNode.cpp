@@ -195,27 +195,33 @@ void CLaserOdometry2DNode::process(const ros::TimerEvent&)
 void CLaserOdometry2DNode::LaserCallBack(const sensor_msgs::LaserScan::ConstPtr& new_scan)
 {
     ROS_DEBUG("RECEIVING laser_scans....") ;
-    if (GT_pose_initialized)
+    if (!GT_pose_initialized)
     {
-        //Keep in memory the last received laser_scan
-        last_scan = *new_scan;
-        current_scan_time = last_scan.header.stamp;
-
-        //Initialize module on first scan
-        if (!first_laser_scan)
-        {
-            //copy laser scan to internal variable
-            for (unsigned int i = 0; i<width; i++)
-                range_wf(i) = new_scan->ranges[i];
-            new_scan_available = true;
-        }
-        else
-        {
-            init(last_scan, initial_robot_pose.pose.pose);
-            setLaserPoseFromTf();
-            first_laser_scan = false;
-        }
+        ROS_WARN("Pose is NOT Initialized!");
+        return;
     }
+
+    //Keep in memory the last received laser_scan
+    last_scan = *new_scan;
+    current_scan_time = last_scan.header.stamp;
+
+    //Initialize module on first scan
+    if (first_laser_scan)
+    {
+        init(last_scan, initial_robot_pose.pose.pose);
+        setLaserPoseFromTf();
+        first_laser_scan = false;
+        ROS_INFO("First scan...Initializing Pose TF...");
+        return;
+    }
+
+    //copy laser scan to internal variable
+    for (unsigned int i = 0; i<width; i++)
+    {
+        range_wf(i) = new_scan->ranges[i];
+    }
+    new_scan_available = true;
+
 }
 
 void CLaserOdometry2DNode::initPoseCallBack(const nav_msgs::Odometry::ConstPtr& new_initPose)
