@@ -184,7 +184,7 @@ void CLaserOdometry2DNode::process(const ros::TimerEvent&)
     }
     else
     {
-        ROS_WARN("Waiting for laser_scans....") ;
+        ROS_DEBUG("Waiting for laser_scans....") ;
     }
 }
 

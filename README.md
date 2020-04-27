@@ -83,4 +83,10 @@ These settings are dedicated to detection of odometry gaps. They allows user to 
 |`linear_velocity_threshold_y`|`linear_velocity_threshold_x` value|`double`|Transversal velocity value trust threshold|
 |`angular_velocity_threshold`|$`10^6`$|`double`|Angular velocity value trust threshold. The angular velocity is considered to be define in `base_frame_id` coordinate system|
 
+### Log Level
+
+Current most of repeated logs are lowered the printing level to DEBUG. To get more verbose log, please call rqt_logger_level to update it:
+```bash
+rosrun rqt_logger_level rqt_logger_level
+```
 
