@@ -69,7 +69,7 @@ CLaserOdometry2DNode::CLaserOdometry2DNode() :
     pn.param<std::string>("base_frame_id", base_frame_id, "/base_link");
     pn.param<std::string>("odom_frame_id", odom_frame_id, "/odom");
     pn.param<bool>("publish_tf", publish_tf, true);
-    pn.param<std::string>("init_pose_from_topic", init_pose_from_topic, "/base_pose_ground_truth");
+    pn.param<std::string>("init_pose_from_topic", init_pose_from_topic, "");
     pn.param<double>("freq",freq,10.0);
     pn.param<bool>("verbose", verbose, true);
     pn.param<std::vector<double> >("pose_covariance_matrix", linear_covariance_matrix, std::vector<double>());
@@ -107,17 +107,16 @@ CLaserOdometry2DNode::CLaserOdometry2DNode() :
     }
     else
     {
+        ROS_INFO("Using default init pose...");
         GT_pose_initialized = true;
         initial_robot_pose.pose.pose.position.x = 0;
         initial_robot_pose.pose.pose.position.y = 0;
         initial_robot_pose.pose.pose.position.z = 0;
-        initial_robot_pose.pose.pose.orientation.w = 0;
+        initial_robot_pose.pose.pose.orientation.w = 1;
         initial_robot_pose.pose.pose.orientation.x = 0;
         initial_robot_pose.pose.pose.orientation.y = 0;
         initial_robot_pose.pose.pose.orientation.z = 0;
     }
-
-    setLaserPoseFromTf();
 
     //Init variables
     module_initialized = false;
@@ -195,6 +194,7 @@ void CLaserOdometry2DNode::process(const ros::TimerEvent&)
 
 void CLaserOdometry2DNode::LaserCallBack(const sensor_msgs::LaserScan::ConstPtr& new_scan)
 {
+    ROS_DEBUG("RECEIVING laser_scans....") ;
     if (GT_pose_initialized)
     {
         //Keep in memory the last received laser_scan
@@ -212,6 +212,7 @@ void CLaserOdometry2DNode::LaserCallBack(const sensor_msgs::LaserScan::ConstPtr&
         else
         {
             init(last_scan, initial_robot_pose.pose.pose);
+            setLaserPoseFromTf();
             first_laser_scan = false;
         }
     }
