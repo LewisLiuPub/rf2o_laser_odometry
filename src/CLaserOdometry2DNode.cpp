@@ -256,35 +256,66 @@ void CLaserOdometry2DNode::VelocityFallbackCallback(const nav_msgs::Odometry::Co
 void CLaserOdometry2DNode::publish()
 {
     //first, we'll publish the odometry over tf
-    //---------------------------------------
     if (publish_tf)
     {
         //ROS_INFO("[rf2o] Publishing TF: [base_link] to [odom]");
-        geometry_msgs::TransformStamped odom_trans;
-        odom_trans.header.stamp = current_scan_time;
-        odom_trans.header.frame_id = odom_frame_id;
-        odom_trans.child_frame_id = base_frame_id;
-        odom_trans.transform.translation.x = robot_pose_.translation()(0);
-        odom_trans.transform.translation.y = robot_pose_.translation()(1);
-        odom_trans.transform.translation.z = 0.0;
-        odom_trans.transform.rotation = tf::createQuaternionMsgFromYaw(rf2o::getYaw(robot_pose_.rotation()));
-        //send the transform
-        odom_broadcaster.sendTransform(odom_trans);
+        publishBaselinkToOdomTransform();
     }
 
     //next, we'll publish the odometry message over ROS
-    //-------------------------------------------------
     //ROS_INFO("[rf2o] Publishing Odom Topic");
     nav_msgs::Odometry odom;
-    odom.header.stamp = current_scan_time;
+    prepareOdomData(odom);
+    justifyOdomVelocity(odom);
+    justifyOdomCovariance(odom);
+
+    odom_pub.publish(odom);
+}
+
+void CLaserOdometry2DNode::BoostCovarianceMatrix(std::vector<double>& covariance)
+{
+    for(auto e = covariance.begin(); e != covariance.end(); e++)
+    {
+        *e *= dynamic_covariance_boost_initial_multiplier;
+        if(dynamic_covariance_boost_progressive)
+            *e += dynamic_covariance_boost_progression_factor * outdated;
+    }
+//    ROS_INFO_COND(verbose, "[COVARIANCE BOOST] Boosted by init %.3f with progression factor %.3f",
+//                  dynamic_covariance_boost_initial_multiplier,
+//                  dynamic_covariance_boost_progression_factor);
+}
+
+void CLaserOdometry2DNode::setCounterClockwiseMultiplier()
+{
+    if(counter_clockwise) counter_clockwise_multiplier = 1.0;
+    else counter_clockwise_multiplier = -1.0;
+}
+
+void CLaserOdometry2DNode::publishBaselinkToOdomTransform()
+{
+    geometry_msgs::TransformStamped odom_trans;
+    odom_trans.header.stamp = current_scan_time;
+    odom_trans.header.frame_id = odom_frame_id;
+    odom_trans.child_frame_id = base_frame_id;
+    odom_trans.transform.translation.x = robot_pose_.translation()(0);
+    odom_trans.transform.translation.y = robot_pose_.translation()(1);
+    odom_trans.transform.translation.z = 0.0;
+    odom_trans.transform.rotation = tf::createQuaternionMsgFromYaw(rf2o::getYaw(robot_pose_.rotation()));
+    odom_broadcaster.sendTransform(odom_trans);
+}
+
+void CLaserOdometry2DNode::prepareOdomData(nav_msgs::Odometry& odom)
+{
+     odom.header.stamp = current_scan_time;
     odom.header.frame_id = odom_frame_id;
+    odom.child_frame_id = base_frame_id;
+
     //set the position
     odom.pose.pose.position.x = counter_clockwise_multiplier * robot_pose_.translation()(0);
     odom.pose.pose.position.y = counter_clockwise_multiplier * robot_pose_.translation()(1);
-    
     odom.pose.pose.position.z = 0.0;
     odom.pose.pose.orientation = tf::createQuaternionMsgFromYaw(rf2o::getYaw(robot_pose_.rotation()));
-    odom.child_frame_id = base_frame_id;
+
     //set the velocity
     double laser_yaw = rf2o::getYaw(  laser_pose_on_robot_.rotation() );
     if( (laser_yaw < (3.1415926 / 2)) || (laser_yaw > (-3.1415926 / 2)) )
@@ -297,9 +328,11 @@ void CLaserOdometry2DNode::publish()
         odom.twist.twist.linear.x = -linear_vx * std::cos(laser_yaw);
         odom.twist.twist.linear.y = -linear_vy * std::cos(laser_yaw);
     }
-    //odom.twist.twist.linear.y = linear_vy;
     odom.twist.twist.angular.z = ang_speed;
+}
 
+void CLaserOdometry2DNode::justifyOdomVelocity(nav_msgs::Odometry& odom)
+{
     if(velocity_thresholds_enabled && velocity_fallback_active)
     {
         std::string verbosity_msg("Velocity thresholds\t");
@@ -326,8 +359,10 @@ void CLaserOdometry2DNode::publish()
         else verbosity_msg +=   "|  W  ";
         ROS_WARN_COND(verbose, "%s", verbosity_msg.c_str());
     }
+}
 
-    //Prepare covariance in case of dynamic boost
+void CLaserOdometry2DNode::justifyOdomCovariance(nav_msgs::Odometry& odom)
+{
     std::vector<double> pub_linear_covariance = linear_covariance_matrix;
     std::vector<double> pub_angular_covariance = angular_covariance_matrix;
     if(dynamic_covariance_boost && unreliable)
@@ -339,26 +374,6 @@ void CLaserOdometry2DNode::publish()
     if(!unreliable) outdated = 0;
     PreparePoseCovariance(odom, pub_linear_covariance);
     PrepareTwistCovariance(odom, pub_angular_covariance);
-    odom_pub.publish(odom);
-}
-
-void CLaserOdometry2DNode::BoostCovarianceMatrix(std::vector<double>& covariance)
-{
-    for(auto e = covariance.begin(); e != covariance.end(); e++)
-    {
-        *e *= dynamic_covariance_boost_initial_multiplier;
-        if(dynamic_covariance_boost_progressive)
-            *e += dynamic_covariance_boost_progression_factor * outdated;
-    }
-//    ROS_INFO_COND(verbose, "[COVARIANCE BOOST] Boosted by init %.3f with progression factor %.3f",
-//                  dynamic_covariance_boost_initial_multiplier,
-//                  dynamic_covariance_boost_progression_factor);
-}
-
-void CLaserOdometry2DNode::setCounterClockwiseMultiplier()
-{
-    if(counter_clockwise) counter_clockwise_multiplier = 1.0;
-    else counter_clockwise_multiplier = -1.0;
 }
 
 } /* namespace rf2o */

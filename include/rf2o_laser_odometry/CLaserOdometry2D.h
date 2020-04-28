@@ -195,6 +195,10 @@ private:
     void PrepareTwistCovariance(nav_msgs::Odometry& message, const std::vector<double>& matrix);
     void BoostCovarianceMatrix(std::vector<double>& covariance);
     void setCounterClockwiseMultiplier();
+    void publishBaselinkToOdomTransform();
+    void prepareOdomData(nav_msgs::Odometry& odom);
+    void justifyOdomVelocity(nav_msgs::Odometry& odom);
+    void justifyOdomCovariance(nav_msgs::Odometry& odom);
 
 public:
 
