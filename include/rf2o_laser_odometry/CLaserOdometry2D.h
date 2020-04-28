@@ -194,6 +194,7 @@ private:
     void PreparePoseCovariance(nav_msgs::Odometry& message, const std::vector<double>& matrix);
     void PrepareTwistCovariance(nav_msgs::Odometry& message, const std::vector<double>& matrix);
     void BoostCovarianceMatrix(std::vector<double>& covariance);
+    void setCounterClockwiseMultiplier();
 
 public:
 
@@ -239,6 +240,7 @@ public:
     double                      velocity_fallback_y;
     double                      velocity_fallback_angular;
     bool                        counter_clockwise;
+    float                        counter_clockwise_multiplier;
 
     //Subscriptions & Publishers
     ros::Subscriber laser_sub, initPose_sub;

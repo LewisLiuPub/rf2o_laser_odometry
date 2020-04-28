@@ -86,6 +86,8 @@ CLaserOdometry2DNode::CLaserOdometry2DNode() :
     pn.param<double>("pose_fallback/angular_velocity_threshold", angular_velocity_threshold, 1.0e+6);
     pn.param<bool>("counter_clockwise", counter_clockwise, true);
 
+    setCounterClockwiseMultiplier();
+
     //Publishers and Subscribers
     //--------------------------
     odom_pub  = pn.advertise<nav_msgs::Odometry>(odom_topic, 5);
@@ -95,10 +97,12 @@ CLaserOdometry2DNode::CLaserOdometry2DNode() :
     {
         pose_fallback = n.subscribe(pose_fallback_topic, 1, &CLaserOdometry2DNode::PoseFallbackCallback, this);
     }
+
     if(velocity_fallback_topic != "")
     {
         velocity_fallback = n.subscribe(velocity_fallback_topic, 1, &CLaserOdometry2DNode::VelocityFallbackCallback, this);
     }
+
     //init pose??
     if (init_pose_from_topic != "")
     {
@@ -257,7 +261,7 @@ void CLaserOdometry2DNode::publish()
     {
         //ROS_INFO("[rf2o] Publishing TF: [base_link] to [odom]");
         geometry_msgs::TransformStamped odom_trans;
-        odom_trans.header.stamp = ros::Time::now();
+        odom_trans.header.stamp = current_scan_time;
         odom_trans.header.frame_id = odom_frame_id;
         odom_trans.child_frame_id = base_frame_id;
         odom_trans.transform.translation.x = robot_pose_.translation()(0);
@@ -272,14 +276,9 @@ void CLaserOdometry2DNode::publish()
     //-------------------------------------------------
     //ROS_INFO("[rf2o] Publishing Odom Topic");
     nav_msgs::Odometry odom;
-    odom.header.stamp = ros::Time::now();
+    odom.header.stamp = current_scan_time;
     odom.header.frame_id = odom_frame_id;
     //set the position
-    float counter_clockwise_multiplier;
-    
-    if(counter_clockwise) counter_clockwise_multiplier = 1.0;
-    else counter_clockwise_multiplier = -1.0;
-    
     odom.pose.pose.position.x = counter_clockwise_multiplier * robot_pose_.translation()(0);
     odom.pose.pose.position.y = counter_clockwise_multiplier * robot_pose_.translation()(1);
     
@@ -354,6 +353,12 @@ void CLaserOdometry2DNode::BoostCovarianceMatrix(std::vector<double>& covariance
 //    ROS_INFO_COND(verbose, "[COVARIANCE BOOST] Boosted by init %.3f with progression factor %.3f",
 //                  dynamic_covariance_boost_initial_multiplier,
 //                  dynamic_covariance_boost_progression_factor);
+}
+
+void CLaserOdometry2DNode::setCounterClockwiseMultiplier()
+{
+    if(counter_clockwise) counter_clockwise_multiplier = 1.0;
+    else counter_clockwise_multiplier = -1.0;
 }
 
 } /* namespace rf2o */
